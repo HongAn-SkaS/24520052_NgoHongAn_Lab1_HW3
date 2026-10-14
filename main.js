@@ -52,6 +52,22 @@ const formStates = {
 };
 
 let currentState = formStates.IDLE;
+let inFlight = false;
+
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function sanitizeInput(str, maxLength) {
+    return escapeHtml(String(str).trim().slice(0, maxLength));
+}
+
 
 function setState(newState) {
     currentState = newState;
@@ -72,14 +88,29 @@ function setState(newState) {
     );
 }
 
+
 registerForm.addEventListener("submit", async (e) => {
     e.preventDefault();
 
-    if (currentState !== formStates.IDLE) {
+    // Block duplicate submissions.
+    if (currentState !== formStates.IDLE || inFlight) {
         return;
     }
 
+    // Lock immediately before starting the request.
+    inFlight = true;
+    submitButton.disabled = true;
+
+    
     setState(formStates.SUBMITTING);
+
+    const nameInput = document.querySelector("#name");
+    const emailInput = document.querySelector("#email");
+    const messageInput = document.querySelector("#message");
+
+    const name = sanitizeInput(nameInput.value, 100);
+    const email = sanitizeInput(emailInput.value, 254);
+    const message = sanitizeInput(messageInput.value, 1000);
 
     try {
         // Simulate an API request.
@@ -88,24 +119,28 @@ registerForm.addEventListener("submit", async (e) => {
         // Demo only: randomly simulate success or failure.
         const isSuccess = Math.random() < 0.5;
 
+        
         if (isSuccess) {
             setState(formStates.SUCCESS);
+            formStatus.textContent = `Thanks, ${name}!`;
         } else {
             setState(formStates.ERROR);
-        }
+    }
+
 
         // Return to idle after displaying the result for 2 seconds.
         setTimeout(() => {
+            inFlight = false;
             setState(formStates.IDLE);
         }, 2000);
     } catch (error) {
         setState(formStates.ERROR);
 
         setTimeout(() => {
+            inFlight = false;
             setState(formStates.IDLE);
         }, 2000);
     }
 });
 
-// Initialize the form state.
-setState(formStates.IDLE);
+
